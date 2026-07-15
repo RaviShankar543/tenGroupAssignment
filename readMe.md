@@ -238,15 +238,11 @@ badges, and the `/bookings` active/cancelled split with its per-row cancel flow)
   stock (`remaining_count > 0`) and freshness (`not is_expired`). Expired items are
   blocked from booking (API and form), shown as **Expired** on `/inventory`
   (distinct from **Unavailable**), and excluded from the `/book` item dropdown.
-  This was the MVP's original scope (display-only) until enforcement was
-  explicitly requested; see `docs/decisions.md` for both entries.
 - **Cancelled bookings are kept.** Cancellation sets `cancelled_at` rather than
   deleting the row, which keeps history easy to reason about.
 - **SQLite + single transaction.** Check-then-decrement of availability runs in one
   transaction. SQLite serialises writes, which is correct here; production would
   move to PostgreSQL with row-level locking or optimistic versioning.
-
-Full decision records are in [`docs/decisions.md`](docs/decisions.md).
 
 ## Troubleshooting
 
