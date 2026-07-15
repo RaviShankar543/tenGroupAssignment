@@ -3,6 +3,7 @@
 Pages:
   GET  /            -> redirects to /inventory (friendly landing page)
   GET  /inventory   -> table of all inventory items and their availability
+  GET  /bookings    -> active and cancelled bookings, with a per-row cancel button
   GET  /book        -> booking form (member + item dropdowns) and cancel form
   POST /book        -> handle a booking form submission, then redirect (PRG)
   POST /cancel      -> handle a cancellation form submission, then redirect (PRG)
@@ -20,12 +21,12 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.config import MAX_BOOKINGS
 from app.database import get_db
 from app.errors import BookingError
-from app.models import InventoryItem, Member
+from app.models import Booking, InventoryItem, Member
 from app import services
 
 # Jinja2 templates live in app/templates. This object renders them to HTML.
@@ -82,6 +83,25 @@ def _all_members(db: Session) -> list[Member]:
     return list(db.scalars(select(Member).order_by(Member.name, Member.surname, Member.id)))
 
 
+def _bookings(db: Session, *, cancelled: bool) -> list[Booking]:
+    """Return bookings made through this app, split by active vs cancelled.
+
+    `cancelled=False` returns active bookings (`cancelled_at IS NULL`) ordered by
+    most-recently created; `cancelled=True` returns cancelled bookings ordered by
+    most-recently cancelled. `member` and `item` are eager-loaded (joinedload) so
+    the template can show human-readable names without triggering a query per row.
+    """
+    condition = Booking.cancelled_at.isnot(None) if cancelled else Booking.cancelled_at.is_(None)
+    order = Booking.cancelled_at.desc() if cancelled else Booking.created_at.desc()
+    stmt = (
+        select(Booking)
+        .where(condition)
+        .order_by(order)
+        .options(joinedload(Booking.member), joinedload(Booking.item))
+    )
+    return list(db.scalars(stmt))
+
+
 # ---------------------------------------------------------------------------
 # GET pages
 # ---------------------------------------------------------------------------
@@ -100,6 +120,32 @@ def inventory_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
         request,
         "inventory.html",
         {"items": _all_items(db)},
+    )
+
+
+@router.get("/bookings", response_class=HTMLResponse)
+def bookings_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    # PRG "flash" params, populated by the redirect after a /cancel POST.
+    status: str | None = None,
+    message: str | None = None,
+) -> HTMLResponse:
+    """List active and cancelled bookings, with a cancel button on active rows.
+
+    This gives a way to cancel from the UI without knowing the booking reference
+    up front: each active row already carries its member id and reference, so the
+    per-row form can post them straight to /cancel.
+    """
+    return templates.TemplateResponse(
+        request,
+        "bookings.html",
+        {
+            "active_bookings": _bookings(db, cancelled=False),
+            "cancelled_bookings": _bookings(db, cancelled=True),
+            "flash_status": status,
+            "flash_message": message,
+        },
     )
 
 
@@ -170,9 +216,16 @@ def book_form(
 def cancel_form(
     member_id: int = Form(...),
     booking_reference: str = Form(...),
+    # Which page the form was submitted from, so we redirect back to it. Only a
+    # small allow-list is honoured (see `_safe_next`) to avoid an open redirect.
+    next: str = Form("/book"),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
-    """Handle a cancellation form submission and redirect back to /book with feedback."""
+    """Handle a cancellation form submission and redirect back with feedback.
+
+    Both the /book cancel form and the per-row cancel buttons on /bookings post
+    here; the hidden `next` field decides which page we return to (PRG).
+    """
     try:
         booking = services.cancel_booking(
             db, member_id=member_id, booking_reference=booking_reference.strip()
@@ -184,7 +237,16 @@ def cancel_form(
     except BookingError as exc:
         params = _encode_flash(status="error", message=exc.message)
 
-    return RedirectResponse(url=f"/book?{params}", status_code=303)
+    return RedirectResponse(url=f"{_safe_next(next)}?{params}", status_code=303)
+
+
+def _safe_next(next_url: str) -> str:
+    """Return `next_url` only if it is a known internal page, else `/book`.
+
+    Restricting to an allow-list keeps this from becoming an open-redirect: the
+    value comes from a form field, so we never reflect an arbitrary destination.
+    """
+    return next_url if next_url in {"/book", "/bookings"} else "/book"
 
 
 def _encode_flash(status: str, message: str, reference: str | None = None) -> str:

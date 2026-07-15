@@ -33,12 +33,12 @@ functions in `services.py`. Business rules are therefore implemented exactly onc
 | `app/services.py` | `book_item()` and `cancel_booking()` — the real business rules, atomic per transaction. |
 | `app/errors.py` | Domain exceptions, each carrying a client-safe message and its HTTP status code. |
 | `app/routes/api.py` | JSON endpoints `POST /api/book`, `POST /api/cancel`. |
-| `app/routes/pages.py` | HTML routes `/`, `/inventory`, `/book`, plus form handlers `POST /book`, `POST /cancel` (Post-Redirect-Get). |
-| `app/templates/` | `base.html`, `inventory.html`, `booking.html`. |
+| `app/routes/pages.py` | HTML routes `/`, `/inventory`, `/bookings`, `/book`, plus form handlers `POST /book`, `POST /cancel` (Post-Redirect-Get). |
+| `app/templates/` | `base.html`, `inventory.html`, `bookings.html`, `booking.html`. |
 | `app/static/styles.css` | Hand-written CSS (no framework, no build step). |
 | `data/` | `members.csv`, `inventory.csv` (source data). |
 | `scripts/load_data.py` | Creates the schema and loads both CSVs; `--reset` makes it idempotent. |
-| `tests/` | `conftest.py` (isolated DB fixtures), `test_loading.py`, `test_booking.py`, `test_api.py`. |
+| `tests/` | `conftest.py` (isolated DB fixtures), `test_loading.py`, `test_booking.py`, `test_api.py`, `test_pages.py`. |
 | `docs/` | `decisions.md` (ADRs), `demo-script.md` (interview walkthrough). |
 
 ## Data model
@@ -74,3 +74,11 @@ belongs to the given member. It stamps `cancelled_at`, decrements the member's c
   share the exact same name are still distinguishable. Its item dropdown only
   offers non-expired items (`_bookable_items()`); sold-out-but-not-expired items are
   still offered so the "no longer available" rule remains demoable through the form.
+- **`/bookings`** lists bookings created through the app in two tables — active
+  (`cancelled_at IS NULL`) and cancelled — with `member`/`item` eager-loaded for
+  display. Each active row has a small cancel form that posts the member id and
+  reference straight to `POST /cancel`, so a booking can be cancelled from the UI
+  without knowing its reference. `POST /cancel` honours a `next` field (allow-list:
+  `/book` or `/bookings`) to redirect back to the originating page after PRG. Only
+  app-created bookings appear here; the imported CSV `booking_count` has no matching
+  rows and is out of scope for listing/cancellation.

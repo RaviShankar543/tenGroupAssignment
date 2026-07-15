@@ -27,6 +27,10 @@
      more specific reason than a plain sold-out "Unavailable". */
   --expired-bg: #fdf1e0;
   --expired-text: #92400e;
+  /* Cancelled bookings reuse the same red family as error flashes so the
+     "no longer active" meaning is consistent across the UI. */
+  --cancelled-bg: #fdeaea;
+  --cancelled-text: #a11212;
 }
 
 * {
@@ -165,6 +169,11 @@ code {
   color: var(--expired-text);
 }
 
+.badge-cancelled {
+  background: var(--cancelled-bg);
+  color: var(--cancelled-text);
+}
+
 /* ---------- Cards (booking / cancel forms) ---------- */
 .cards {
   display: grid;
@@ -234,6 +243,18 @@ code {
 
 .btn-secondary:hover {
   background: #475569;
+}
+
+/* Compact button used inside table rows (e.g. per-row Cancel on /bookings). */
+.btn-sm {
+  margin-top: 0;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+/* Wrapper so a one-button form sits inline in a table cell without extra gaps. */
+.inline-form {
+  margin: 0;
 }
 
 /* ---------- Flash messages (PRG feedback) ---------- */

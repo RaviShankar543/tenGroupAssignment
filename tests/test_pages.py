@@ -59,3 +59,62 @@ def test_inventory_page_shows_expired_badge_not_unavailable(client, seed_basic):
     assert 'badge-expired">Expired</span>' in html
     # ...and the sold-out (non-expired) item still uses the generic one.
     assert 'badge-unavailable">Unavailable</span>' in html
+
+
+def test_bookings_page_empty_state(client, seed_basic):
+    """With no bookings yet, /bookings renders both tables and their empty states."""
+    resp = client.get("/bookings")
+    assert resp.status_code == 200
+    html = resp.text
+
+    assert "No active bookings yet." in html
+    assert "No cancelled bookings." in html
+
+
+def test_bookings_page_lists_active_and_offers_row_cancel(client, seed_basic):
+    """After booking, /bookings shows the row as active with a per-row cancel form
+    carrying the member id and reference (so no reference typing is needed)."""
+    member = seed_basic["available_member"]
+    item = seed_basic["available_item"]
+
+    booked = client.post(
+        "/api/book", json={"member_id": member.id, "inventory_item_id": item.id}
+    )
+    assert booked.status_code == 201
+    reference = booked.json()["booking_reference"]
+
+    html = client.get("/bookings").text
+    assert reference in html
+    assert "Bali" in html
+    assert 'badge-available">Active</span>' in html
+    # The per-row cancel form has everything the /cancel handler needs.
+    assert f'name="booking_reference" value="{reference}"' in html
+    assert f'name="member_id" value="{member.id}"' in html
+    assert 'name="next" value="/bookings"' in html
+
+
+def test_bookings_page_row_cancel_moves_booking_to_cancelled(client, seed_basic):
+    """Posting the per-row cancel form redirects back to /bookings (PRG) and the
+    booking then appears under the cancelled table, not the active one."""
+    member = seed_basic["available_member"]
+    item = seed_basic["available_item"]
+    reference = client.post(
+        "/api/book", json={"member_id": member.id, "inventory_item_id": item.id}
+    ).json()["booking_reference"]
+
+    resp = client.post(
+        "/cancel",
+        data={
+            "member_id": str(member.id),
+            "booking_reference": reference,
+            "next": "/bookings",
+        },
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/bookings?")
+
+    html = client.get("/bookings").text
+    # The reference now sits after the "Cancelled" heading, i.e. in that table.
+    assert html.rindex(reference) > html.index(">Cancelled<")
+    assert 'badge-cancelled">Cancelled</span>' in html

@@ -1,0 +1,105 @@
+{#
+  bookings.html — lists bookings made through this app, split into active and
+  cancelled, with a per-row cancel button on the active table.
+
+  This is the UI answer to "how do I cancel without knowing the reference?": each
+  active row already carries its member id and reference, so its little form can
+  post straight to /cancel (with next=/bookings so we return here after PRG).
+
+  Only bookings CREATED in this app appear here — they are the only ones with a
+  reference and the only ones that can be cancelled. The CSV `booking_count` on a
+  member has no matching Booking rows, so it is intentionally not shown here.
+#}
+{% extends "base.html" %}
+
+{% block title %}Bookings · Ten Lifestyle Booking{% endblock %}
+
+{% block content %}
+  <h1>Bookings</h1>
+  <p class="muted">
+    Bookings made through this app. Active bookings can be cancelled here directly;
+    cancelled bookings are kept for history and are shown below.
+  </p>
+
+  {# ---- Flash message (only rendered after a cancel submission) ---- #}
+  {% if flash_message %}
+    <div class="flash flash-{{ flash_status }}">
+      {{ flash_message }}
+    </div>
+  {% endif %}
+
+  {# ----------------------------- Active ----------------------------- #}
+  <h2>Active</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Member</th>
+        <th>Item</th>
+        <th>Booked</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in active_bookings %}
+        <tr>
+          <td><code>{{ booking.reference }}</code></td>
+          <td>{{ booking.member.full_name }}</td>
+          <td>{{ booking.item.title }}</td>
+          <td>{{ booking.created_at.strftime('%d %b %Y %H:%M') }} UTC</td>
+          <td><span class="badge badge-available">Active</span></td>
+          <td>
+            {# Everything the cancel service needs is already on the row, so no
+               reference typing is required — this is the whole point of the page. #}
+            <form action="/cancel" method="post" class="inline-form"
+                  onsubmit="return confirm('Cancel booking {{ booking.reference }}?');">
+              <input type="hidden" name="member_id" value="{{ booking.member_id }}" />
+              <input type="hidden" name="booking_reference" value="{{ booking.reference }}" />
+              <input type="hidden" name="next" value="/bookings" />
+              <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="muted">
+            No active bookings yet. Create one on the
+            <a href="/book">Book / Cancel</a> page.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# ---------------------------- Cancelled ---------------------------- #}
+  <h2>Cancelled</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Member</th>
+        <th>Item</th>
+        <th>Booked</th>
+        <th>Cancelled</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in cancelled_bookings %}
+        <tr>
+          <td><code>{{ booking.reference }}</code></td>
+          <td>{{ booking.member.full_name }}</td>
+          <td>{{ booking.item.title }}</td>
+          <td>{{ booking.created_at.strftime('%d %b %Y %H:%M') }} UTC</td>
+          <td>{{ booking.cancelled_at.strftime('%d %b %Y %H:%M') }} UTC</td>
+          <td><span class="badge badge-cancelled">Cancelled</span></td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="muted">No cancelled bookings.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

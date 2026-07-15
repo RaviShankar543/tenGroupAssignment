@@ -22,12 +22,53 @@ The goal is a clear, correct, easy-to-run take-home — not a production platfor
 
 ## Prerequisites
 
-- **Python 3.11+** (developed and tested on 3.12).
-- `pip` and the ability to create a virtual environment.
+- **Python 3.11+** (developed and tested on 3.12) — this is the *only* thing you
+  need to install. Everything else (the web server, the database, the frontend)
+  is a Python library installed into a local virtual environment in the next
+  step. No Docker, no Node.js, no PostgreSQL/MySQL server, and no system-wide
+  package installs are required.
+- `pip` and the standard library's `venv` module. Both ship with Python on
+  Windows and macOS. On some Linux distributions (Debian/Ubuntu) `venv` is a
+  separate package — see Troubleshooting below if `python -m venv` fails.
+
+**Check whether Python is already installed** by opening a terminal
+(Command Prompt/PowerShell on Windows, Terminal on macOS/Linux) and running:
+
+```bash
+python --version
+```
+
+If that prints `Python 3.11` or higher, you're set — use `python` in the
+commands below. If it prints an error, or a version below 3.11, try:
+
+```bash
+python3 --version
+```
+
+If `python3` works instead, substitute `python3` for `python` in every command
+below (this is common on macOS and Linux). If neither command works, install
+Python from [python.org/downloads](https://www.python.org/downloads/) (check
+"Add Python to PATH" during install on Windows), then re-open your terminal and
+try again.
+
+## Getting the Code
+
+Download or clone this repository, then locate the `booking-app/` folder — it
+is the project root and contains this `README.md`, an `app/` folder, a
+`data/` folder (with `members.csv` and `inventory.csv`), and a
+`requirements.txt`. **All commands below must be run from inside
+`booking-app/`.**
+
+```bash
+cd booking-app
+```
 
 ## Setup
 
-Run these from the `booking-app/` directory.
+Run these from the `booking-app/` directory. This creates an isolated Python
+environment (`.venv/`) inside the project folder and installs the exact
+libraries this app needs (FastAPI, Uvicorn, SQLAlchemy, Jinja2, pytest, etc.
+— see `requirements.txt`) without touching anything else on your machine.
 
 **macOS / Linux**
 
@@ -44,6 +85,19 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
+
+**Windows Command Prompt (cmd.exe)**
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+After activation, your prompt should be prefixed with `(.venv)`. Every command
+in the rest of this README assumes the virtual environment is active — if you
+close and reopen your terminal, re-run the activate line (not the whole setup)
+before continuing.
 
 ## Loading the Data
 
@@ -72,6 +126,7 @@ Then open:
 
 ```text
 http://127.0.0.1:8000/inventory   # inventory table with availability
+http://127.0.0.1:8000/bookings    # active + cancelled bookings, cancel per row
 http://127.0.0.1:8000/book        # booking + cancellation forms
 http://127.0.0.1:8000/docs        # interactive API documentation (Swagger UI)
 ```
@@ -83,6 +138,14 @@ http://127.0.0.1:8000/docs        # interactive API documentation (Swagger UI)
   and expired items stay visible (not hidden) so both availability rules are
   obvious. An item that is both sold out and expired shows **Expired** — the more
   specific reason.
+- **`/bookings`** — the bookings made through this app, split into **Active** and
+  **Cancelled** tables (member, item, reference, timestamps).
+  - Each active row has a **Cancel** button that cancels that booking directly —
+    no need to look up the reference in the database first. It reuses the same
+    `POST /cancel` handler (and therefore the same service and business rules) as
+    the form on `/book`, then redirects back here (Post-Redirect-Get).
+  - Only bookings created through this app appear here. The imported CSV
+    `booking_count` has no matching booking rows and so is not listed or cancellable.
 - **`/book`** — a booking form (member + item dropdowns) and a cancellation form.
   - The member dropdown lists everyone alphabetically (first name, then surname)
     and shows each member's join date ("member since ...") so members who share
@@ -92,6 +155,8 @@ http://127.0.0.1:8000/docs        # interactive API documentation (Swagger UI)
     rule is demoable through the form.
   - Submissions use **Post-Redirect-Get**, so refreshing the page after booking
     does not double-book. Success and error messages appear near the top.
+  - Cancelling by reference here still works, but the easiest way to cancel is the
+    per-row button on **`/bookings`**.
 
 ## API Usage
 
@@ -157,7 +222,8 @@ pytest
 Tests run against a temporary SQLite database (never your real `booking.db`) and
 cover CSV loading, the service-layer business rules, the HTTP API contract, and
 HTML page rendering (member ordering/join date, expired-item filtering and
-badges). **31 tests pass** as of the last run.
+badges, and the `/bookings` active/cancelled split with its per-row cancel flow).
+**34 tests pass** as of the last run.
 
 ## Design Decisions and Trade-offs
 
@@ -186,6 +252,11 @@ Full decision records are in [`docs/decisions.md`](docs/decisions.md).
 
 - **`ModuleNotFoundError: No module named 'app'`** — run commands from the
   `booking-app/` directory, and use the module form: `python -m scripts.load_data`.
+- **`python: command not found` (macOS/Linux)** — use `python3` instead of
+  `python` in every command in this README.
+- **`No module named venv` / `ensurepip is not available` (Linux)** — your
+  distro ships `venv` separately; install it (Debian/Ubuntu:
+  `sudo apt install python3-venv`) then retry.
 - **Virtual environment not active** — you should see `(.venv)` in your prompt;
   re-run the activate command for your OS.
 - **PowerShell blocks activation** (`running scripts is disabled`) — run once:
