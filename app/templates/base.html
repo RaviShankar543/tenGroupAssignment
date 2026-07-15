@@ -1,0 +1,39 @@
+{#
+  base.html — shared layout for every page.
+
+  Child templates extend this file and fill the `content` block. This keeps the
+  <head>, navigation bar and page chrome defined in exactly one place.
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  {# Each page sets its own <title> via the `title` block, defaulting below. #}
+  <title>{% block title %}Ten Lifestyle Booking{% endblock %}</title>
+  {# url_for('static', ...) resolves to the mounted /static path in main.py. #}
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/inventory">Ten Lifestyle Booking</a>
+      <nav class="nav">
+        <a href="/inventory">Inventory</a>
+        <a href="/book">Book / Cancel</a>
+        <a href="/docs">API Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Take-home demo &middot; FastAPI + SQLite + Jinja2</p>
+    </div>
+  </footer>
+</body>
+</html>

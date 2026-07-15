@@ -1,0 +1,99 @@
+{#
+  booking.html — the booking form and the cancellation form.
+
+  Feedback: after a POST, routes/pages.py redirects back here with flash_status /
+  flash_message / flash_reference query params (Post-Redirect-Get). We render that
+  as a green success box or a red error box near the top of the page.
+
+  Dropdown values are database IDs (not names/titles), because the CSVs contain
+  duplicates and IDs are unambiguous. Members are listed alphabetically (first
+  name, then surname) with their join date shown ("member since ...") so two
+  members who share the exact same name are still distinguishable in the list
+  (see Member.joined_display in models.py). The item dropdown in the BOOKING
+  form only receives non-expired items (routes/pages.py:_bookable_items) —
+  expired items remain visible on /inventory, just not selectable here.
+#}
+{% extends "base.html" %}
+
+{% block title %}Book / Cancel · Ten Lifestyle Booking{% endblock %}
+
+{% block content %}
+  <h1>Book or Cancel</h1>
+
+  {# ---- Flash message (only rendered after a form submission) ---- #}
+  {% if flash_message %}
+    <div class="flash flash-{{ flash_status }}">
+      {{ flash_message }}
+    </div>
+  {% endif %}
+
+  <div class="cards">
+    {# ------------------------- Booking form ------------------------- #}
+    <section class="card">
+      <h2>Make a booking</h2>
+      <p class="muted">
+        Members already at the limit ({{ max_bookings }}) or items with no
+        availability will be rejected with a clear message.
+      </p>
+
+      <form action="/book" method="post" class="form">
+        <label for="member_id">Member</label>
+        <select id="member_id" name="member_id" required>
+          {% for member in members %}
+            {# Label shows current bookings (limit rule) and join date (so two
+               members sharing the same name can still be told apart). #}
+            <option value="{{ member.id }}">
+              {{ member.full_name }} — member since {{ member.joined_display }} — current bookings: {{ member.booking_count }}
+            </option>
+          {% endfor %}
+        </select>
+
+        <label for="inventory_item_id">Item</label>
+        {# `items` here is ALREADY filtered to exclude expired items (see
+           routes/pages.py:_bookable_items) — no expiration check needed here. #}
+        <select id="inventory_item_id" name="inventory_item_id" required>
+          {% for item in items %}
+            <option value="{{ item.id }}">
+              {{ item.title }} — remaining: {{ item.remaining_count }}
+            </option>
+          {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-primary">Book</button>
+      </form>
+    </section>
+
+    {# ----------------------- Cancellation form ----------------------- #}
+    <section class="card">
+      <h2>Cancel a booking</h2>
+      <p class="muted">
+        Enter the member and the booking reference you received (e.g. BK-8F3A2C9D).
+      </p>
+
+      <form action="/cancel" method="post" class="form">
+        <label for="cancel_member_id">Member</label>
+        <select id="cancel_member_id" name="member_id" required>
+          {% for member in members %}
+            {# Same "member since ..." disambiguator as the booking form above. #}
+            <option value="{{ member.id }}">
+              {{ member.full_name }} — member since {{ member.joined_display }}
+            </option>
+          {% endfor %}
+        </select>
+
+        <label for="booking_reference">Booking reference</label>
+        <input
+          type="text"
+          id="booking_reference"
+          name="booking_reference"
+          placeholder="BK-XXXXXXXX"
+          {# Pre-fill with the just-created reference to make cancellation easy to demo. #}
+          value="{{ flash_reference or '' }}"
+          required
+        />
+
+        <button type="submit" class="btn btn-secondary">Cancel booking</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

@@ -1,0 +1,11 @@
+# Runtime and test dependencies for the Ten Lifestyle booking app.
+# Versions are pinned loosely (>=) so a fresh `pip install` on the evaluator's
+# machine picks a recent, compatible release without surprising major upgrades.
+
+fastapi>=0.110          # Web framework: routing, dependency injection, Pydantic integration
+uvicorn[standard]>=0.29 # ASGI server used to run the FastAPI app locally
+sqlalchemy>=2.0         # ORM + database toolkit (2.0 style used throughout)
+jinja2>=3.1             # Server-side HTML templating for the two web pages
+python-multipart>=0.0.9 # REQUIRED so FastAPI can parse HTML <form> POST bodies
+pytest>=8.0             # Test runner
+httpx>=0.27             # HTTP client used by Starlette's TestClient in tests

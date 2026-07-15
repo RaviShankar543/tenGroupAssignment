@@ -1,0 +1,72 @@
+{#
+  inventory.html — lists every inventory item and its availability.
+
+  Business rules made visible, in priority order (see InventoryItem.is_available /
+  is_expired in models.py):
+    1. EXPIRED  — expiration_date has passed. Shown with a distinct "Expired"
+       badge (not "Unavailable") so the reason is specific, not generic. Expired
+       items are excluded from the /book dropdown but stay listed here.
+    2. UNAVAILABLE — not expired, but remaining_count == 0 (sold out).
+    3. AVAILABLE — not expired AND remaining_count > 0.
+  Nothing is ever hidden from this table: sold-out and expired items stay listed
+  so both rules are obvious to a reviewer. Status is conveyed with TEXT (not
+  colour alone) for accessibility.
+#}
+{% extends "base.html" %}
+
+{% block title %}Inventory · Ten Lifestyle Booking{% endblock %}
+
+{% block content %}
+  <h1>Inventory</h1>
+  <p class="muted">
+    All bookable items. Sold-out items remain listed but cannot be booked.
+    Expired items (expiration date in the past) are also listed but flagged
+    "Expired" and are blocked from booking, both in the form and the API.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Description</th>
+        <th>Remaining</th>
+        <th>Status</th>
+        <th>Expires</th>
+      </tr>
+    </thead>
+    <tbody>
+      {# Loop over the items passed in from routes/pages.py:inventory_page. #}
+      {% for item in items %}
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.title }}</td>
+          {# Descriptions can be long; the CSS truncates the cell for readability. #}
+          <td class="desc">{{ item.description }}</td>
+          <td>{{ item.remaining_count }}</td>
+          <td>
+            {# Check is_expired FIRST: an expired item is always labelled
+               "Expired", even if it also happens to be sold out, because that
+               is the more specific and more useful reason. #}
+            {% if item.is_expired %}
+              <span class="badge badge-expired">Expired</span>
+            {% elif item.is_available %}
+              <span class="badge badge-available">Available</span>
+            {% else %}
+              <span class="badge badge-unavailable">Unavailable</span>
+            {% endif %}
+          </td>
+          {# expiration_date is a datetime; format as DD/MM/YYYY to match the source. #}
+          <td>{{ item.expiration_date.strftime('%d/%m/%Y') }}</td>
+        </tr>
+      {% else %}
+        {# Shown only if the database has not been loaded yet. #}
+        <tr>
+          <td colspan="6" class="muted">
+            No inventory found. Run <code>python -m scripts.load_data --reset</code> to load data.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
