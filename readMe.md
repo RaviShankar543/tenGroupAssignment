@@ -53,19 +53,14 @@ try again.
 
 ## Getting the Code
 
-Download or clone this repository, then locate the `booking-app/` folder — it
-is the project root and contains this `README.md`, an `app/` folder, a
+Download or clone this repository, the project root contains `README.md`, an `app/` folder, a
 `data/` folder (with `members.csv` and `inventory.csv`), and a
-`requirements.txt`. **All commands below must be run from inside
-`booking-app/`.**
-
-```bash
-cd booking-app
-```
+`requirements.txt`. 
+**All commands below must be run from inside this folder**
 
 ## Setup
 
-Run these from the `booking-app/` directory. This creates an isolated Python
+Run these from the root directory. This creates an isolated Python
 environment (`.venv/`) inside the project folder and installs the exact
 libraries this app needs (FastAPI, Uvicorn, SQLAlchemy, Jinja2, pytest, etc.
 — see `requirements.txt`) without touching anything else on your machine.
